@@ -2,75 +2,103 @@ cat > public/index.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
-  <title>FitFusion Blog</title>
+  <title>FitFusion Admin Blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js"></script>
 
   <style>
-    body { font-family: Arial; margin:0; background:#f4f4f4; }
-    header { background:#111; color:#fff; padding:20px; text-align:center; }
-    .container { max-width:800px; margin:auto; padding:20px; }
+    body { margin:0; font-family:Arial; background:#0f0f0f; color:white; }
+
+    .appbar {
+      text-align:center; padding:15px;
+      background:#111; font-weight:bold;
+    }
+
+    .container { max-width:500px; margin:auto; padding:10px; }
+
+    .post {
+      background:#1a1a1a;
+      padding:15px;
+      margin:10px 0;
+      border-radius:12px;
+    }
 
     input, textarea {
       width:100%; padding:10px; margin:5px 0;
+      border:none; border-radius:8px;
+      background:#222; color:white;
     }
 
     button {
-      padding:10px; border:none; cursor:pointer;
-      margin:5px 5px 5px 0;
+      width:100%; padding:10px;
+      border:none; border-radius:8px;
+      background:#00c853; color:white;
+      font-weight:bold;
     }
 
-    .post {
-      background:#fff; padding:15px; margin-bottom:10px;
+    .actions { display:flex; gap:5px; margin-top:10px; }
+
+    .edit { background:orange; }
+    .delete { background:red; }
+
+    #adminBox {
+      background:#111;
+      padding:10px;
+      margin:10px;
       border-radius:10px;
     }
-
-    .edit { background:orange; color:#fff; }
-    .delete { background:red; color:#fff; }
-    .add { background:black; color:#fff; width:100%; }
   </style>
 </head>
 
 <body>
 
-<header>
-  <h1>FitFusion Blog 🚀</h1>
-</header>
+<div class="appbar">🏋️ FitFusion Admin Blog</div>
 
 <div class="container">
 
-  <h3>Add / Edit Post</h3>
-  <input id="title" placeholder="Title">
-  <textarea id="content" placeholder="Content"></textarea>
-  <button class="add" onclick="addPost()">Add Post</button>
+  <!-- ADMIN LOGIN -->
+  <div id="adminBox">
+    <input id="adminPass" type="password" placeholder="Enter Admin Password">
+    <button onclick="login()">Login</button>
+  </div>
 
-  <h3>Posts</h3>
+  <div id="panel" style="display:none;">
+
+    <input id="title" placeholder="Title">
+    <textarea id="content" placeholder="Content"></textarea>
+    <button onclick="addPost()">POST</button>
+
+  </div>
+
   <div id="posts"></div>
 
 </div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "YOUR_KEY",
-    authDomain: "fitfusion-77786.firebaseapp.com",
-    projectId: "fitfusion-77786"
-  };
+  const ADMIN_PASSWORD = "1234"; // change this later
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-
+  let isAdmin = false;
   let editId = null;
 
+  function login() {
+    const pass = document.getElementById("adminPass").value;
+
+    if (pass === ADMIN_PASSWORD) {
+      isAdmin = true;
+      document.getElementById("panel").style.display = "block";
+      document.getElementById("adminBox").style.display = "none";
+    } else {
+      alert("Wrong password");
+    }
+  }
+
   function addPost() {
+    if (!isAdmin) return;
+
     const title = document.getElementById("title").value;
     const content = document.getElementById("content").value;
 
     if (editId) {
-      db.collection("posts").doc(editId).update({
-        title,
-        content
-      });
+      db.collection("posts").doc(editId).update({ title, content });
       editId = null;
     } else {
       db.collection("posts").add({
@@ -79,18 +107,19 @@ cat > public/index.html << 'EOF'
         time: Date.now()
       });
     }
-
-    document.getElementById("title").value = "";
-    document.getElementById("content").value = "";
   }
 
   function editPost(id, title, content) {
+    if (!isAdmin) return;
+
     document.getElementById("title").value = title;
     document.getElementById("content").value = content;
     editId = id;
   }
 
   function deletePost(id) {
+    if (!isAdmin) return;
+
     db.collection("posts").doc(id).delete();
   }
 
@@ -106,8 +135,10 @@ cat > public/index.html << 'EOF'
             <h2>${p.title}</h2>
             <p>${p.content}</p>
 
-            <button class="edit" onclick="editPost('${doc.id}','${p.title}','${p.content}')">Edit</button>
-            <button class="delete" onclick="deletePost('${doc.id}')">Delete</button>
+            <div class="actions">
+              <button class="edit" onclick="editPost('${doc.id}','${p.title}','${p.content}')">Edit</button>
+              <button class="delete" onclick="deletePost('${doc.id}')">Delete</button>
+            </div>
           </div>
         `;
       });
