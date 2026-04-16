@@ -1,217 +1,121 @@
+cat > public/index.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
-  <title>FitFusion</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitFusion Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #0a0a0a;
-      color: white;
+    body { font-family: Arial; margin:0; background:#f4f4f4; }
+    header { background:#111; color:#fff; padding:20px; text-align:center; }
+    .container { max-width:800px; margin:auto; padding:20px; }
+
+    input, textarea {
+      width:100%; padding:10px; margin:5px 0;
     }
 
-    header {
-      background: black;
-      padding: 10px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    button {
+      padding:10px; border:none; cursor:pointer;
+      margin:5px 5px 5px 0;
     }
 
-    .logo {
-      height: 45px;
+    .post {
+      background:#fff; padding:15px; margin-bottom:10px;
+      border-radius:10px;
     }
 
-    .btn {
-      padding: 8px 15px;
-      border: none;
-      background: lime;
-      cursor: pointer;
-      font-weight: bold;
-      margin: 5px;
-    }
-
-    .container {
-      text-align: center;
-      margin-top: 40px;
-    }
-
-    input, select {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 5px;
-      border: none;
-    }
-
-    .card {
-      background: #111;
-      padding: 20px;
-      margin: 20px auto;
-      width: 300px;
-      border-radius: 10px;
-    }
-
-    .hidden {
-      display: none;
-    }
+    .edit { background:orange; color:#fff; }
+    .delete { background:red; color:#fff; }
+    .add { background:black; color:#fff; width:100%; }
   </style>
 </head>
 
 <body>
 
 <header>
-  <img src="logo.png" class="logo">
-  <button class="btn" onclick="logout()">Logout</button>
+  <h1>FitFusion Blog 🚀</h1>
 </header>
 
-<!-- AUTH -->
-<div class="container" id="authBox">
-  <h2>FitFusion Login 🔐</h2>
-  <input type="email" id="email" placeholder="Email"><br>
-  <input type="password" id="password" placeholder="Password"><br>
-  <button class="btn" onclick="signup()">Signup</button>
-  <button class="btn" onclick="login()">Login</button>
-</div>
+<div class="container">
 
-<!-- DASHBOARD -->
-<div class="container hidden" id="dashboard">
-  <h2>Welcome 💪</h2>
-  <p id="userEmail"></p>
+  <h3>Add / Edit Post</h3>
+  <input id="title" placeholder="Title">
+  <textarea id="content" placeholder="Content"></textarea>
+  <button class="add" onclick="addPost()">Add Post</button>
 
-  <!-- Workout Tracker -->
-  <div class="card">
-    <h3>🏋️ Workout Tracker</h3>
-    <input type="text" id="workout" placeholder="Enter workout">
-    <button class="btn" onclick="addWorkout()">Add</button>
-    <ul id="workoutList"></ul>
-  </div>
-
-  <!-- Calories -->
-  <div class="card">
-    <h3>🔥 Calories Tracker</h3>
-    <input type="number" id="calories" placeholder="Calories">
-    <button class="btn" onclick="addCalories()">Add</button>
-    <p id="totalCalories">Total: 0</p>
-  </div>
-
-  <!-- Diet -->
-  <div class="card">
-    <h3>🥗 Diet Plan</h3>
-    <select id="goal">
-      <option value="gain">Muscle Gain</option>
-      <option value="loss">Fat Loss</option>
-      <option value="maintain">Maintain</option>
-    </select>
-    <button class="btn" onclick="generateDiet()">Get Plan</button>
-    <p id="dietResult"></p>
-  </div>
-
-  <!-- Workout Plan -->
-  <div class="card">
-    <h3>💪 Workout Plan</h3>
-    <button class="btn" onclick="generateWorkout()">Get Plan</button>
-    <p id="workoutResult"></p>
-  </div>
-
-  <!-- Coach -->
-  <div class="card">
-    <h3>🎯 Personal Coach</h3>
-    <input type="number" id="weight" placeholder="Weight (kg)">
-    <input type="number" id="height" placeholder="Height (cm)">
-    <button class="btn" onclick="coach()">Get Advice</button>
-    <p id="coachResult"></p>
-  </div>
+  <h3>Posts</h3>
+  <div id="posts"></div>
 
 </div>
 
-<!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import {
-    getAuth,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
+<script>
   const firebaseConfig = {
     apiKey: "YOUR_KEY",
-    authDomain: "YOUR_DOMAIN",
-    projectId: "YOUR_ID"
+    authDomain: "fitfusion-77786.firebaseapp.com",
+    projectId: "fitfusion-77786"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      authBox.classList.add("hidden");
-      dashboard.classList.remove("hidden");
-      userEmail.innerText = user.email;
+  let editId = null;
+
+  function addPost() {
+    const title = document.getElementById("title").value;
+    const content = document.getElementById("content").value;
+
+    if (editId) {
+      db.collection("posts").doc(editId).update({
+        title,
+        content
+      });
+      editId = null;
     } else {
-      authBox.classList.remove("hidden");
-      dashboard.classList.add("hidden");
+      db.collection("posts").add({
+        title,
+        content,
+        time: Date.now()
+      });
     }
-  });
 
-  window.signup = () => {
-    createUserWithEmailAndPassword(auth, email.value, password.value)
-      .catch(e => alert(e.message));
-  };
+    document.getElementById("title").value = "";
+    document.getElementById("content").value = "";
+  }
 
-  window.login = () => {
-    signInWithEmailAndPassword(auth, email.value, password.value)
-      .catch(e => alert(e.message));
-  };
+  function editPost(id, title, content) {
+    document.getElementById("title").value = title;
+    document.getElementById("content").value = content;
+    editId = id;
+  }
 
-  window.logout = () => signOut(auth);
+  function deletePost(id) {
+    db.collection("posts").doc(id).delete();
+  }
 
-  // Workout
-  window.addWorkout = () => {
-    let li = document.createElement("li");
-    li.textContent = workout.value;
-    workoutList.appendChild(li);
-  };
+  db.collection("posts").orderBy("time","desc")
+    .onSnapshot(snapshot => {
+      let html = "";
 
-  // Calories
-  let total = 0;
-  window.addCalories = () => {
-    total += parseInt(calories.value) || 0;
-    totalCalories.innerText = "Total: " + total;
-  };
+      snapshot.forEach(doc => {
+        const p = doc.data();
 
-  // Diet
-  window.generateDiet = () => {
-    let g = goal.value;
-    let text = g === "gain"
-      ? "Eggs, Chicken, Milk 🍗"
-      : g === "loss"
-      ? "Salad, Fruits 🥗"
-      : "Balanced diet 🍚";
+        html += `
+          <div class="post">
+            <h2>${p.title}</h2>
+            <p>${p.content}</p>
 
-    dietResult.innerText = text;
-  };
+            <button class="edit" onclick="editPost('${doc.id}','${p.title}','${p.content}')">Edit</button>
+            <button class="delete" onclick="deletePost('${doc.id}')">Delete</button>
+          </div>
+        `;
+      });
 
-  // Workout Plan
-  window.generateWorkout = () => {
-    workoutResult.innerText =
-      "Pushups, Squats, Plank, Running 💪";
-  };
-
-  // Coach
-  window.coach = () => {
-    let w = weight.value, h = height.value;
-    let bmi = w / ((h/100)**2);
-
-    coachResult.innerText =
-      bmi < 18.5 ? "Gain weight 💪"
-      : bmi < 25 ? "You are fit ✅"
-      : "Lose weight 🔥";
-  };
+      document.getElementById("posts").innerHTML = html;
+    });
 </script>
 
 </body>
 </html>
+EOF
